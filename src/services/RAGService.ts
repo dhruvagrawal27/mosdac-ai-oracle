@@ -1,5 +1,6 @@
 
 import { supabase } from '@/integrations/supabase/client';
+import { AnalyticsService } from './AnalyticsService';
 
 interface Source {
   title: string;
@@ -33,12 +34,40 @@ export class RAGService {
       // Load MOSDAC knowledge base
       await this.loadMOSDACKnowledgeBase();
 
+      // Update analytics with actual knowledge base size
+      const totalEntities = this.calculateTotalEntities();
+      const totalRelations = this.calculateTotalRelations();
+      AnalyticsService.updateKnowledgeGraph(totalEntities, totalRelations);
+      AnalyticsService.updateDocumentsProcessed(this.knowledgeBase.length);
+
       this.isInitialized = true;
       console.log('RAG Service initialized successfully');
+      console.log(`Knowledge base loaded: ${this.knowledgeBase.length} documents, ${totalEntities} entities, ${totalRelations} relations`);
     } catch (error) {
       console.error('Failed to initialize RAG Service:', error);
       throw error;
     }
+  }
+
+  private calculateTotalEntities(): number {
+    const uniqueEntities = new Set();
+    this.knowledgeBase.forEach(doc => {
+      doc.entities.forEach((entity: string) => {
+        uniqueEntities.add(entity.toLowerCase());
+      });
+    });
+    return uniqueEntities.size;
+  }
+
+  private calculateTotalRelations(): number {
+    // Calculate based on entity co-occurrence in documents
+    let relations = 0;
+    this.knowledgeBase.forEach(doc => {
+      const entityCount = doc.entities.length;
+      // Each pair of entities in the same document creates a potential relation
+      relations += (entityCount * (entityCount - 1)) / 2;
+    });
+    return relations;
   }
 
   private async loadMOSDACKnowledgeBase(): Promise<void> {
@@ -54,7 +83,7 @@ export class RAGService {
         Data products include temperature profiles, humidity profiles, rainfall estimation, and cloud imagery.`,
         url: 'https://mosdac.gov.in/insat-3d',
         category: 'satellite',
-        entities: ['INSAT-3D', 'ISRO', 'meteorological satellite', 'Imager', 'Sounder'],
+        entities: ['INSAT-3D', 'ISRO', 'meteorological satellite', 'Imager', 'Sounder', 'weather forecasting', 'monsoon', 'cyclone'],
         keywords: ['weather', 'forecasting', 'monsoon', 'cyclone', 'atmospheric'],
         isProcessed: true
       },
@@ -68,7 +97,7 @@ export class RAGService {
         Data products include chlorophyll maps, sea surface temperature, and ocean productivity indices.`,
         url: 'https://mosdac.gov.in/oceansat-3',
         category: 'satellite',
-        entities: ['Oceansat-3', 'EOS-06', 'OCM-3', 'SSTM', 'ocean observation'],
+        entities: ['Oceansat-3', 'EOS-06', 'OCM-3', 'SSTM', 'ocean observation', 'Ocean Colour Monitor', 'Sea Surface Temperature Monitor'],
         keywords: ['ocean', 'marine', 'fishery', 'coastal', 'chlorophyll'],
         isProcessed: true
       },
@@ -82,7 +111,7 @@ export class RAGService {
         The satellite provides crucial data for understanding monsoon patterns and tropical cyclone formation.`,
         url: 'https://mosdac.gov.in/megha-tropiques',
         category: 'satellite',
-        entities: ['Megha-Tropiques', 'Indo-French', 'MADRAS', 'SAPHIR', 'tropical climate'],
+        entities: ['Megha-Tropiques', 'Indo-French mission', 'MADRAS', 'SAPHIR', 'tropical climate', 'microwave radiometer', 'humidity sounder'],
         keywords: ['tropical', 'precipitation', 'humidity', 'monsoon', 'cyclone'],
         isProcessed: true
       },
@@ -96,7 +125,7 @@ export class RAGService {
         Commercial use requires separate licensing agreements. Educational institutions get priority access.`,
         url: 'https://mosdac.gov.in/data-access-policy',
         category: 'policy',
-        entities: ['MOSDAC', 'data access', 'HDF5', 'NetCDF', 'GeoTIFF'],
+        entities: ['MOSDAC', 'data access', 'HDF5', 'NetCDF', 'GeoTIFF', 'registration', 'licensing'],
         keywords: ['access', 'policy', 'registration', 'format', 'licensing'],
         isProcessed: true
       },
@@ -110,7 +139,7 @@ export class RAGService {
         Quality assessment and validation information is provided with each product.`,
         url: 'https://mosdac.gov.in/rainfall-products',
         category: 'data-product',
-        entities: ['rainfall', 'INSAT-3D', 'GPM-IMERG', 'GSMaP', 'SAPHIR'],
+        entities: ['rainfall products', 'INSAT-3D', 'Hydro-Estimator', 'GPM-IMERG', 'GSMaP', 'SAPHIR rainfall'],
         keywords: ['rainfall', 'precipitation', 'hydro-estimator', 'real-time', 'validation'],
         isProcessed: true
       }
@@ -127,6 +156,7 @@ export class RAGService {
     try {
       // Find relevant documents using keyword matching
       const relevantDocs = this.findRelevantDocuments(question);
+      console.log(`Found ${relevantDocs.length} relevant documents for question`);
       
       // Prepare context from relevant documents
       const context = relevantDocs.map(doc => 
@@ -159,8 +189,10 @@ export class RAGService {
         confidence: 0.8
       }));
 
-      // Extract simple entities from question
-      const entities = this.extractSimpleEntities(question);
+      // Extract entities from question and relevant documents
+      const entities = this.extractEntitiesFromContext(question, relevantDocs);
+
+      console.log(`Response generated with ${sources.length} sources and ${entities.length} entities`);
 
       return {
         answer: data.answer || "I couldn't process your question. Please try again.",
@@ -206,27 +238,38 @@ export class RAGService {
       return { ...doc, score };
     });
     
-    return scoredDocs
+    const relevantDocs = scoredDocs
       .filter(doc => doc.score > 0)
       .sort((a, b) => b.score - a.score)
       .slice(0, 3);
+
+    console.log('Document relevance scores:', relevantDocs.map(doc => ({
+      title: doc.title,
+      score: doc.score
+    })));
+
+    return relevantDocs;
   }
 
-  private extractSimpleEntities(text: string): Entity[] {
+  private extractEntitiesFromContext(question: string, relevantDocs: any[]): Entity[] {
     const entities: Entity[] = [];
     const entityPatterns = [
       { pattern: /(INSAT-3D|INSAT-3DR)/gi, label: 'SATELLITE' },
-      { pattern: /(Oceansat-3|Oceansat-2)/gi, label: 'SATELLITE' },
+      { pattern: /(Oceansat-3|Oceansat-2|EOS-06)/gi, label: 'SATELLITE' },
       { pattern: /(Megha-Tropiques)/gi, label: 'SATELLITE' },
-      { pattern: /(MADRAS|SAPHIR|OCM-3|SSTM|Imager|Sounder)/gi, label: 'INSTRUMENT' },
+      { pattern: /(MADRAS|SAPHIR|OCM-3|SSTM|Imager|Sounder|Hydro-Estimator)/gi, label: 'INSTRUMENT' },
       { pattern: /(ISRO|MOSDAC)/gi, label: 'ORGANIZATION' },
-      { pattern: /(rainfall|precipitation|humidity|temperature)/gi, label: 'DATA_PRODUCT' }
+      { pattern: /(rainfall|precipitation|humidity|temperature|chlorophyll|ocean color)/gi, label: 'DATA_PRODUCT' }
     ];
 
+    // Extract from question
+    const searchText = question + ' ' + relevantDocs.map(doc => doc.content).join(' ');
+
     entityPatterns.forEach(({ pattern, label }) => {
-      const matches = text.match(pattern);
+      const matches = searchText.match(pattern);
       if (matches) {
-        matches.forEach(match => {
+        const uniqueMatches = [...new Set(matches)];
+        uniqueMatches.forEach(match => {
           entities.push({
             text: match,
             label,
@@ -241,5 +284,13 @@ export class RAGService {
 
   getKnowledgeBase() {
     return this.knowledgeBase;
+  }
+
+  getAnalytics() {
+    return {
+      documentsCount: this.knowledgeBase.length,
+      entitiesCount: this.calculateTotalEntities(),
+      relationsCount: this.calculateTotalRelations()
+    };
   }
 }

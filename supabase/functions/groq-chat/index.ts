@@ -21,6 +21,8 @@ serve(async (req) => {
 
     const { messages, context } = await req.json();
 
+    console.log('Calling Groq API with context:', context ? 'provided' : 'none');
+
     const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -28,28 +30,39 @@ serve(async (req) => {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'meta-llama/llama-4-scout-17b-16e-instruct',
+        model: 'meta-llama/llama-3.2-90b-text-preview',
         messages: [
           {
             role: 'system',
             content: `You are a helpful AI assistant for MOSDAC (Meteorological and Oceanographic Satellite Data Archival Centre). 
-            Use the following context to answer questions about ISRO satellites, weather data, and ocean monitoring:
-            ${context || 'No specific context provided.'}`
+            Provide clear, well-formatted responses about ISRO satellites, weather data, and ocean monitoring.
+            
+            Format your responses with proper line breaks and structure:
+            - Use **bold** for important terms
+            - Use numbered lists for steps or points
+            - Keep paragraphs short and readable
+            - Add line breaks between sections
+            
+            Context from MOSDAC knowledge base:
+            ${context || 'General MOSDAC information available.'}`
           },
           ...messages
         ],
         temperature: 0.7,
-        max_tokens: 1000,
+        max_tokens: 1500,
       }),
     });
 
     if (!response.ok) {
       const errorData = await response.text();
+      console.error('Groq API error:', response.status, errorData);
       throw new Error(`Groq API error: ${response.status} - ${errorData}`);
     }
 
     const data = await response.json();
     const assistantMessage = data.choices[0].message.content;
+
+    console.log('Groq response received successfully');
 
     return new Response(JSON.stringify({ 
       answer: assistantMessage,

@@ -1,16 +1,28 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ChatInterface } from '../components/ChatInterface';
 import { KnowledgeGraphViewer } from '../components/KnowledgeGraphViewer';
 import { DataIngestionPanel } from '../components/DataIngestionPanel';
+import { AnalyticsService } from '../services/AnalyticsService';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Brain, MessageSquare, Database, Globe, Zap, Search } from 'lucide-react';
+import { Brain, MessageSquare, Database, Globe, Zap, Search, RefreshCw } from 'lucide-react';
 
 const Index = () => {
   const [isSystemInitialized, setIsSystemInitialized] = useState(false);
   const [crawlingProgress, setCrawlingProgress] = useState(0);
+  const [analytics, setAnalytics] = useState(AnalyticsService.getMetrics());
+
+  const refreshAnalytics = () => {
+    setAnalytics(AnalyticsService.getMetrics());
+  };
+
+  useEffect(() => {
+    // Refresh analytics every 5 seconds when on analytics tab
+    const interval = setInterval(refreshAnalytics, 5000);
+    return () => clearInterval(interval);
+  }, []);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
@@ -115,32 +127,59 @@ const Index = () => {
           <TabsContent value="data-ingestion">
             <DataIngestionPanel 
               onProgressUpdate={setCrawlingProgress}
-              onComplete={() => setIsSystemInitialized(true)}
+              onComplete={() => {
+                setIsSystemInitialized(true);
+                refreshAnalytics();
+              }}
             />
           </TabsContent>
 
           <TabsContent value="analytics">
             <Card>
               <CardHeader>
-                <CardTitle>System Analytics</CardTitle>
+                <CardTitle className="flex items-center justify-between">
+                  System Analytics
+                  <Button variant="outline" size="sm" onClick={refreshAnalytics}>
+                    <RefreshCw className="h-4 w-4 mr-2" />
+                    Refresh
+                  </Button>
+                </CardTitle>
                 <CardDescription>
-                  Performance metrics and insights from the AI system
+                  Real-time performance metrics and insights from the AI system
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
                   <div className="p-4 bg-blue-50 rounded-lg">
                     <h3 className="font-semibold text-blue-900">Documents Processed</h3>
-                    <p className="text-2xl font-bold text-blue-600">1,247</p>
+                    <p className="text-2xl font-bold text-blue-600">{analytics.documentsProcessed}</p>
                   </div>
                   <div className="p-4 bg-green-50 rounded-lg">
                     <h3 className="font-semibold text-green-900">Knowledge Entities</h3>
-                    <p className="text-2xl font-bold text-green-600">3,456</p>
+                    <p className="text-2xl font-bold text-green-600">{analytics.knowledgeEntities}</p>
                   </div>
                   <div className="p-4 bg-purple-50 rounded-lg">
                     <h3 className="font-semibold text-purple-900">Relations Mapped</h3>
-                    <p className="text-2xl font-bold text-purple-600">8,923</p>
+                    <p className="text-2xl font-bold text-purple-600">{analytics.relationsMapped}</p>
                   </div>
+                </div>
+                
+                <div className="text-sm text-gray-600">
+                  <p>Last updated: {analytics.lastUpdated.toLocaleString()}</p>
+                  <p className="mt-2">System Status: {isSystemInitialized ? 'Active' : 'Initializing'}</p>
+                </div>
+
+                <div className="mt-6">
+                  <Button 
+                    variant="destructive" 
+                    size="sm" 
+                    onClick={() => {
+                      AnalyticsService.resetMetrics();
+                      refreshAnalytics();
+                    }}
+                  >
+                    Reset Analytics
+                  </Button>
                 </div>
               </CardContent>
             </Card>
