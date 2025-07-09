@@ -58,12 +58,16 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ isSystemReady, onS
   useEffect(() => {
     // Initialize RAG service
     const initializeSystem = async () => {
+      if (isSystemReady) return;
+      
       try {
+        console.log('Initializing RAG Service...');
         await ragService.initialize();
         onSystemReady(true);
+        
         toast({
           title: "System Initialized",
-          description: "AI HelpBot is ready to answer your questions!",
+          description: "AI HelpBot is ready with Groq LLM support!",
         });
       } catch (error) {
         console.error('Failed to initialize RAG service:', error);
@@ -75,9 +79,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ isSystemReady, onS
       }
     };
 
-    if (!isSystemReady) {
-      initializeSystem();
-    }
+    initializeSystem();
   }, [ragService, isSystemReady, onSystemReady]);
 
   const handleSendMessage = async () => {
@@ -140,8 +142,11 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ isSystemReady, onS
     "What is INSAT-3D and what data does it provide?",
     "How can I access rainfall data from MOSDAC?",
     "Tell me about Oceansat-3 mission",
-    "What are the data access policies?",
-    "Show me information about Megha-Tropiques satellite"
+    "What are the data access policies for MOSDAC?",
+    "Show me information about Megha-Tropiques satellite",
+    "How do I download satellite data?",
+    "What instruments are on INSAT-3D?",
+    "Explain ocean color monitoring"
   ];
 
   return (
