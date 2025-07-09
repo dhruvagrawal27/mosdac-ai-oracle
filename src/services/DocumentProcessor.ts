@@ -1,4 +1,3 @@
-
 interface CrawledDocument {
   url: string;
   title: string;

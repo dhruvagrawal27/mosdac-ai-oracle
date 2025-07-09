@@ -1,5 +1,4 @@
-
-import { pipeline, Pipeline } from '@huggingface/transformers';
+import { pipeline } from '@huggingface/transformers';
 
 interface Source {
   title: string;
@@ -21,9 +20,9 @@ interface RAGResponse {
 }
 
 export class RAGService {
-  private questionAnsweringPipeline: Pipeline | null = null;
-  private nerPipeline: Pipeline | null = null;
-  private embeddingPipeline: Pipeline | null = null;
+  private questionAnsweringPipeline: any = null;
+  private nerPipeline: any = null;
+  private embeddingPipeline: any = null;
   private knowledgeBase: any[] = [];
   private isInitialized = false;
 

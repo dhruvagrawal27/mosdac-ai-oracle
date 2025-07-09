@@ -1,4 +1,3 @@
-
 import React, { useState, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -33,6 +32,17 @@ interface CrawledDocument {
   status: 'pending' | 'processing' | 'completed' | 'error';
 }
 
+interface ProcessedDocument extends CrawledDocument {
+  entities: Array<{
+    text: string;
+    label: string;
+    confidence: number;
+    startOffset: number;
+    endOffset: number;
+  }>;
+  keywords: string[];
+}
+
 interface DataIngestionPanelProps {
   onProgressUpdate: (progress: number) => void;
   onComplete: () => void;
@@ -54,6 +64,7 @@ export const DataIngestionPanel: React.FC<DataIngestionPanelProps> = ({
   });
 
   const [documents, setDocuments] = useState<CrawledDocument[]>([]);
+  const [processedDocuments, setProcessedDocuments] = useState<ProcessedDocument[]>([]);
   const [baseUrl, setBaseUrl] = useState('https://mosdac.gov.in');
   const [isRunning, setIsRunning] = useState(false);
   const [selectedTab, setSelectedTab] = useState('crawler');
@@ -76,6 +87,7 @@ export const DataIngestionPanel: React.FC<DataIngestionPanelProps> = ({
   const startIngestion = async () => {
     setIsRunning(true);
     setDocuments([]);
+    setProcessedDocuments([]);
     
     try {
       // Phase 1: Web Crawling
@@ -106,11 +118,13 @@ export const DataIngestionPanel: React.FC<DataIngestionPanelProps> = ({
       });
 
       const processor = new DocumentProcessor();
+      const processedDocs: ProcessedDocument[] = [];
       let processedCount = 0;
 
       for (const doc of crawledDocs) {
         try {
-          await processor.processDocument(doc);
+          const processed = await processor.processDocument(doc);
+          processedDocs.push(processed);
           processedCount++;
           
           updateStatus({
@@ -123,6 +137,8 @@ export const DataIngestionPanel: React.FC<DataIngestionPanelProps> = ({
         }
       }
 
+      setProcessedDocuments(processedDocs);
+
       // Phase 3: Knowledge Graph Building
       updateStatus({
         phase: 'building-kg',
@@ -131,7 +147,7 @@ export const DataIngestionPanel: React.FC<DataIngestionPanelProps> = ({
       });
 
       const kgBuilder = new KnowledgeGraphBuilder();
-      const { entities, relations } = await kgBuilder.buildGraph(crawledDocs);
+      const { entities, relations } = await kgBuilder.buildGraph(processedDocs);
 
       updateStatus({
         progress: 85,
