@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Send, Bot, User, ExternalLink, MapPin, FileText, Loader2 } from 'lucide-react';
 import { RAGService } from '../services/RAGService';
 import { toast } from "@/hooks/use-toast";
+import ReactMarkdown from 'react-markdown';
 
 interface Message {
   id: string;
@@ -36,7 +37,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ isSystemReady, onS
   const [messages, setMessages] = useState<Message[]>([
     {
       id: '1',
-      content: "Hello! I'm the MOSDAC AI Assistant. I can help you find information about ISRO satellites, oceanographic data, meteorological products, and more. Try asking me about INSAT-3D, rainfall data, or any specific mission!",
+      content: "Hello! I'm NavDrishti, your AI Assistant. I can help you find information about ISRO satellites, oceanographic data, meteorological products, and more. Try asking me about INSAT-3D, rainfall data, or any specific mission!",
       sender: 'bot',
       timestamp: new Date(),
     }
@@ -157,7 +158,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ isSystemReady, onS
           <CardHeader>
             <CardTitle className="flex items-center space-x-2">
               <Bot className="h-5 w-5 text-blue-600" />
-              <span>MOSDAC AI Assistant</span>
+              <span>NavDrishti</span>
               {!isSystemReady && <Loader2 className="h-4 w-4 animate-spin text-yellow-500" />}
             </CardTitle>
           </CardHeader>
@@ -181,7 +182,10 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ isSystemReady, onS
                         {message.sender === 'bot' && <Bot className="h-4 w-4 mt-1 text-blue-600" />}
                         {message.sender === 'user' && <User className="h-4 w-4 mt-1" />}
                         <div className="flex-1">
-                          <p className="text-sm">{message.content}</p>
+                          {/* <p className="text-sm">{message.content}</p> */}
+                          <div className="text-sm">
+                            <ReactMarkdown>{message.content}</ReactMarkdown>
+                          </div>
                           
                           {/* Entities */}
                           {message.entities && message.entities.length > 0 && (

@@ -36,7 +36,7 @@ const Index = () => {
               </div>
               <div>
                 <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-                  MOSDAC AI HelpBot
+                  NavDrishti
                 </h1>
                 <p className="text-sm text-gray-600">Intelligent Assistant for ISRO Satellite Data Portal</p>
               </div>
@@ -83,7 +83,7 @@ const Index = () => {
             <CardHeader>
               <CardTitle className="flex items-center space-x-2">
                 <MessageSquare className="h-5 w-5 text-green-600" />
-                <span>AI Assistant</span>
+                <span>NavDrishti</span>
               </CardTitle>
               <CardDescription>
                 Provides intelligent answers using RAG-based question answering with source attribution
